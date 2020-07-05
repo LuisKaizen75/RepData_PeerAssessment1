@@ -7,19 +7,83 @@ output:
 
 
 ## Loading and preprocessing the data
+```{r}
+unzip("activity.zip")
+data<-read.csv("activity.csv")
 
+```
 
 
 ## What is mean total number of steps taken per day?
+```{r}
+suppressMessages( library(dplyr))
+data2<-group_by(data,date)
+totalperday<-suppressMessages(summarize(data2,steps=sum(steps,na.rm = TRUE)))
+totalperday<-as.data.frame(totalperday)
+knitr::kable(totalperday,format = "html")
+hist(totalperday$steps, main = "Histogram of total steps per day", xlab = "Steps")
+meants<-mean(totalperday$steps)
+meants<-round(meants,2)
+mediants<-median(totalperday$steps)
+```
+The mean of the total number of steps per day is: *`r meants`* steps  
+The median of the total number of steps per day is: *`r mediants`* steps 
 
 
 
 ## What is the average daily activity pattern?
+```{r}
+data3<-group_by(data,interval)
+daily<-suppressMessages(summarize(data3, steps=mean(steps, na.rm = TRUE)))
+plot(daily$interval,daily$steps, type = "l", xlab="interval", ylab = "steps")
+winter<-which.max(daily$steps)
+winter<-daily$interval[winter]
+```
+The maximum average steps per day are located in the interval *`r winter`*
 
 
 
 ## Imputing missing values
+```{r cache=TRUE}
+totalmis<-sum(is.na(data$steps))
 
+data4<-data
+#change the NA for the mean of that interval
+for (i in 1:nrow(data4)) {
+        if (is.na(data4[i,"steps"])==TRUE) {
+                lin<-data4[i,"interval"]
+                pos<-match(lin,daily$interval)
+                data4[i,"steps"]<-daily[pos,"steps"]
+        }
+  }
+#data4 is the new dataset without NA's
+  newdata<-group_by(data4,date)
+  newdata<-suppressMessages(summarize(newdata,steps=sum(steps)))
+  hist(newdata$steps, main = "Histogram of total steps per day (imputed)", xlab = "steps")
+  meanna<-mean(newdata$steps)
+  meanna<-round(meanna,2)
+  medianna<-median(newdata$steps)
+  medianna<-round(medianna,2)
+
+```
+The total NAs present in the data are: *`r totalmis`*  
+
+Replacing the NAs values with the average of steps in the corresponding interval leads to an increase in both the mean and median. The value for the mean is *`r toString(meanna)`*. The value for the median is *`r toString(medianna)`*. As can be seen both the mean and the median get the same value with this impute.
 
 
 ## Are there differences in activity patterns between weekdays and weekends?
+
+```{r}
+library(chron)
+data4$Wdays<-factor(chron::is.weekend(data4$date),levels = c(FALSE,TRUE), labels = c("Weekday","Weekend"))
+library(ggplot2)
+wdata<-group_by(data4,interval,Wdays)
+wdata<-suppressMessages(summarize(wdata,steps=mean(steps)))
+qplot(data=wdata,interval,steps, geom = "line",facets = Wdays~.)
+```
+  
+    
+It can be seen that in weekends are more activity in the evening, while in weekdays are more activity during the morning.
+
+
+
